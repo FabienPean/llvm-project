@@ -4880,6 +4880,25 @@ static bool isVariadicFunctionTemplate(FunctionTemplateDecl *FunTmpl) {
   return true;
 }
 
+/// Determine index of the first parameter pack in the
+/// function template-type-list
+static unsigned indexVariadicTemplate(FunctionTemplateDecl *FunTmpl) {
+  unsigned InvalidIndex = unsigned(-1);
+  unsigned IndexOfFirstParameterPack = InvalidIndex;
+  TemplateParameterList *TmplLst = FunTmpl->getTemplateParameters();
+  unsigned NumParams = TmplLst->size();
+  if (NumParams == 0)
+    return InvalidIndex;
+
+  // Search for the first parameter pack in template list
+  while (++IndexOfFirstParameterPack < NumParams) {
+    if (TmplLst->getParam(IndexOfFirstParameterPack)->isParameterPack())
+      return IndexOfFirstParameterPack;
+  }
+
+  return InvalidIndex;
+}
+
 /// Returns the more specialized function template according
 /// to the rules of function template partial ordering (C++ [temp.func.order]).
 ///
@@ -4923,6 +4942,11 @@ Sema::getMoreSpecializedTemplate(FunctionTemplateDecl *FT1,
   bool Variadic2 = isVariadicFunctionTemplate(FT2);
   if (Variadic1 != Variadic2)
     return Variadic1? FT2 : FT1;
+
+  unsigned IndexVariadic1 = indexVariadicTemplate(FT1);
+  unsigned IndexVariadic2 = indexVariadicTemplate(FT2);
+  if (IndexVariadic1 != IndexVariadic2)
+    return (IndexVariadic1 > IndexVariadic2) ? FT1 : FT2;
 
   return nullptr;
 }
